@@ -8,10 +8,11 @@ Requires JDK 21.
 
 ```bash
 export DOTBIT_BACKEND_TOKEN="replace-with-a-long-random-token"
+export GEMINI_API_KEY="your-google-ai-studio-key"
 ./gradlew run
 ```
 
-Without `LLM_API_KEY`, development mode uses a deterministic provider that chooses only from submitted OCR alternatives. Run the tests with:
+When `GEMINI_API_KEY` is present, the service uses Gemini 3.8 Flash. Without the key, development mode uses a deterministic provider that chooses only from submitted OCR alternatives. Production mode fails fast when the key is missing. Run the tests with:
 
 ```bash
 ./gradlew test
@@ -22,6 +23,16 @@ Without `LLM_API_KEY`, development mode uses a deterministic provider that choos
 - `GET /health`
 - `POST /v1/corrections`
 - Optional bearer authentication through `DOTBIT_BACKEND_TOKEN`
+
+With Gemini configured, the health response identifies the active provider and model:
+
+```json
+{
+  "status": "ok",
+  "correctionProvider": "gemini-constrained",
+  "correctionModel": "gemini-3.8-flash"
+}
+```
 
 The correction request accepts only recognized text, uncertain spans, confidence values, and candidate alternatives. Unknown JSON fields are rejected; page images and raw photos are never accepted.
 
@@ -42,14 +53,14 @@ The correction request accepts only recognized text, uncertain spans, confidence
 
 ## Production configuration
 
-Copy `.env.example` into your deployment provider's environment settings. Production mode requires both `DOTBIT_BACKEND_TOKEN` and `LLM_API_KEY`.
+Copy `.env.example` into your deployment provider's environment settings. Production mode requires both `DOTBIT_BACKEND_TOKEN` and `GEMINI_API_KEY`.
 
 - `PORT`: server port; defaults to `8080`.
 - `ENVIRONMENT`: set to `production` to enforce production secrets.
 - `DOTBIT_BACKEND_TOKEN`: bearer token expected from the app.
-- `LLM_API_KEY`: provider API key, held only by this service.
-- `LLM_BASE_URL`: OpenAI-compatible API base URL.
-- `LLM_MODEL`: model identifier.
+- `GEMINI_API_KEY`: Gemini API key created in Google AI Studio and held only by this service.
+- `GEMINI_BASE_URL`: Gemini REST API base URL; defaults to Google's `v1beta` endpoint.
+- `GEMINI_MODEL`: defaults to `gemini-3.8-flash`.
 - `ALLOWED_ORIGINS`: optional comma-separated browser origins.
 
 Build and run the container with:
@@ -59,7 +70,7 @@ docker build -t dotbit-backend .
 docker run --rm -p 8080:8080 \
   -e ENVIRONMENT=production \
   -e DOTBIT_BACKEND_TOKEN="..." \
-  -e LLM_API_KEY="..." \
+  -e GEMINI_API_KEY="..." \
   dotbit-backend
 ```
 
@@ -69,11 +80,14 @@ This folder is already initialized as an independent local Git repository on the
 
 This repository includes a root `render.yaml` Blueprint and a Dockerfile. Push this folder to its own Git repository, then create a Render Blueprint from that repository. Render will ask for `DOTBIT_BACKEND_TOKEN`; use the same long random value in the app build configuration.
 
-The Blueprint initially uses `ENVIRONMENT=development`, so it can exercise the deterministic correction provider without an LLM key. To enable the external provider in Render:
+The Blueprint runs in production mode and is configured for Gemini 3.8 Flash. Before redeploying the existing Render service, add these values under **Environment**:
 
-1. Add `LLM_API_KEY` as a secret environment variable.
-2. Change `ENVIRONMENT` to `production`.
-3. Redeploy and verify `GET /health` reports `llm-constrained`.
+1. Add `GEMINI_API_KEY` as a secret environment variable. Paste the API key itself as the value.
+2. Keep the existing `DOTBIT_BACKEND_TOKEN`; it is a separate app-to-backend credential.
+3. Set `ENVIRONMENT=production` and `GEMINI_MODEL=gemini-3.8-flash`.
+4. Redeploy and verify `GET /health` reports `gemini-constrained` and `gemini-3.8-flash`.
+
+Never put `GEMINI_API_KEY` in the mobile app, `local.properties`, source control, or the public request payload. Only Render receives it. The backend sends Gemini only recognized text, uncertain spans, confidence values, and alternatives. It has no image upload field or image-forwarding path.
 
 After Render assigns the service URL, configure the app's untracked `local.properties`:
 

@@ -41,8 +41,8 @@ fun Application.module(
         encodeDefaults = true
     }
     val policy = CorrectionPolicy()
-    val provider = providerOverride ?: config.llmApiKey?.let {
-        OpenAiCompatibleCorrectionProvider(it, config.llmBaseUrl, config.llmModel, jsonCodec)
+    val provider = providerOverride ?: config.geminiApiKey?.let {
+        GeminiCorrectionProvider(it, config.geminiBaseUrl, config.geminiModel, jsonCodec)
     } ?: DeterministicCorrectionProvider(policy)
 
     install(ContentNegotiation) { json(jsonCodec) }
@@ -82,7 +82,13 @@ fun Application.module(
 
     routing {
         get("/health") {
-            call.respond(HealthResponse(status = "ok", correctionProvider = provider.name))
+            call.respond(
+                HealthResponse(
+                    status = "ok",
+                    correctionProvider = provider.name,
+                    correctionModel = provider.modelName,
+                ),
+            )
         }
         post("/v1/corrections") {
             config.backendToken?.let { expected ->
@@ -96,7 +102,11 @@ fun Application.module(
             }
             val request = call.receive<CorrectionRequest>()
             policy.validateRequest(request)
-            val result = provider.suggest(request)
+            val result = if (request.uncertainSpans.isEmpty()) {
+                policy.deterministicResult(request)
+            } else {
+                provider.suggest(request)
+            }
             call.respond(policy.validateResult(request, result))
         }
     }

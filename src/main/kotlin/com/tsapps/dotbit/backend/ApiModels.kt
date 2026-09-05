@@ -1,12 +1,17 @@
 package com.tsapps.dotbit.backend
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @Serializable
 data class HealthResponse(
     val status: String,
     val correctionProvider: String,
+    val correctionModel: String? = null,
 )
 
 @Serializable
@@ -16,21 +21,87 @@ data class ErrorResponse(
 )
 
 @Serializable
-internal data class ChatCompletionRequest(
-    val model: String,
-    val messages: List<ChatMessage>,
-    val temperature: Double = 0.0,
-    @SerialName("response_format") val responseFormat: ResponseFormat = ResponseFormat(),
+internal data class GeminiGenerateContentRequest(
+    val systemInstruction: GeminiContent,
+    val contents: List<GeminiContent>,
+    val generationConfig: GeminiGenerationConfig = GeminiGenerationConfig(),
 )
 
 @Serializable
-internal data class ResponseFormat(val type: String = "json_object")
+internal data class GeminiGenerationConfig(
+    val temperature: Double = 0.0,
+    val maxOutputTokens: Int = 4_096,
+    val responseFormat: GeminiResponseFormat = GeminiResponseFormat(),
+)
 
 @Serializable
-internal data class ChatMessage(val role: String, val content: String)
+internal data class GeminiResponseFormat(
+    val text: GeminiTextFormat = GeminiTextFormat(),
+)
 
 @Serializable
-internal data class ChatCompletionResponse(val choices: List<ChatChoice>)
+internal data class GeminiTextFormat(
+    val mimeType: String = "application/json",
+    val schema: JsonObject = correctionResultSchema,
+)
 
 @Serializable
-internal data class ChatChoice(val message: ChatMessage)
+internal data class GeminiContent(
+    val parts: List<GeminiPart>,
+    val role: String? = null,
+)
+
+@Serializable
+internal data class GeminiPart(val text: String)
+
+@Serializable
+internal data class GeminiGenerateContentResponse(
+    val candidates: List<GeminiCandidate> = emptyList(),
+)
+
+@Serializable
+internal data class GeminiCandidate(
+    val content: GeminiContent? = null,
+    val finishReason: String? = null,
+)
+
+private val correctionResultSchema = buildJsonObject {
+    put("type", "object")
+    put("additionalProperties", false)
+    put("properties", buildJsonObject {
+        put("originalText", buildJsonObject { put("type", "string") })
+        put("correctedText", buildJsonObject { put("type", "string") })
+        put("corrections", buildJsonObject {
+            put("type", "array")
+            put("items", buildJsonObject {
+                put("type", "object")
+                put("additionalProperties", false)
+                put("properties", buildJsonObject {
+                    put("startIndex", buildJsonObject { put("type", "integer") })
+                    put("endIndex", buildJsonObject { put("type", "integer") })
+                    put("original", buildJsonObject { put("type", "string") })
+                    put("replacement", buildJsonObject { put("type", "string") })
+                    put("confidence", buildJsonObject {
+                        put("type", "number")
+                        put("minimum", 0)
+                        put("maximum", 1)
+                    })
+                    put("reason", buildJsonObject { put("type", "string") })
+                })
+                put("required", buildJsonArray {
+                    add("startIndex")
+                    add("endIndex")
+                    add("original")
+                    add("replacement")
+                    add("confidence")
+                    add("reason")
+                })
+            })
+        })
+    })
+    put("required", buildJsonArray {
+        add("originalText")
+        add("correctedText")
+        add("corrections")
+    })
+}

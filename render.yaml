@@ -9,10 +9,12 @@ services:
     autoDeployTrigger: commit
     envVars:
       - key: ENVIRONMENT
-        value: development
+        value: production
       - key: DOTBIT_BACKEND_TOKEN
         sync: false
-      - key: LLM_BASE_URL
-        value: https://api.openai.com/v1
-      - key: LLM_MODEL
-        value: gpt-4.1-mini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash

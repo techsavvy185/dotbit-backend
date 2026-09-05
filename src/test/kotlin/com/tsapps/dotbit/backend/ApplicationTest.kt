@@ -19,9 +19,9 @@ class ApplicationTest {
         port = 8080,
         production = false,
         backendToken = "test-token",
-        llmApiKey = null,
-        llmBaseUrl = "https://api.example.com/v1",
-        llmModel = "test-model",
+        geminiApiKey = null,
+        geminiBaseUrl = "https://generativelanguage.googleapis.com/v1beta",
+        geminiModel = "gemini-test",
         allowedOrigins = emptyList(),
     )
 
@@ -30,6 +30,20 @@ class ApplicationTest {
         application { module(config) }
         val response = client.get("/health")
         assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `health endpoint reports Gemini when its key is configured`() = testApplication {
+        application { module(config.copy(geminiApiKey = "test-gemini-key")) }
+        val json = Json { ignoreUnknownKeys = false }
+        val apiClient = createClient { install(ContentNegotiation) { json(json) } }
+
+        val response = apiClient.get("/health")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val health = response.body<HealthResponse>()
+        assertEquals("gemini-constrained", health.correctionProvider)
+        assertEquals("gemini-test", health.correctionModel)
     }
 
     @Test
@@ -59,6 +73,29 @@ class ApplicationTest {
         }
 
         assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `request without uncertainty does not call Gemini`() = testApplication {
+        val provider = object : CorrectionProvider {
+            override val name = "must-not-run"
+
+            override suspend fun suggest(request: CorrectionRequest): CorrectionResult {
+                error("Provider should not be called without uncertain spans.")
+            }
+        }
+        application { module(config, providerOverride = provider) }
+        val json = Json { ignoreUnknownKeys = false }
+        val apiClient = createClient { install(ContentNegotiation) { json(json) } }
+
+        val response = apiClient.post("/v1/corrections") {
+            bearerAuth("test-token")
+            contentType(ContentType.Application.Json)
+            setBody(CorrectionRequest(recognizedText = "Confident text.", uncertainSpans = emptyList()))
+        }
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("Confident text.", response.body<CorrectionResult>().correctedText)
     }
 
     private fun sampleRequest() = CorrectionRequest(

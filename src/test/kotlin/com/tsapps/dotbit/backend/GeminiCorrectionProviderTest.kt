@@ -39,12 +39,12 @@ class GeminiCorrectionProviderTest {
             assertFalse("topP" in generationConfig)
             assertFalse("topK" in generationConfig)
             assertEquals(
-                "low",
+                "LOW",
                 generationConfig.getValue("thinkingConfig").jsonObject
                     .getValue("thinkingLevel").jsonPrimitive.content,
             )
             assertEquals(
-                "application/json",
+                "APPLICATION_JSON",
                 generationConfig.getValue("responseFormat").jsonObject
                     .getValue("text").jsonObject
                     .getValue("mimeType").jsonPrimitive.content,

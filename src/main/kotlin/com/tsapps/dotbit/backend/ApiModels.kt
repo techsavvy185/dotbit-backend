@@ -36,7 +36,7 @@ internal data class GeminiGenerationConfig(
 
 @Serializable
 internal data class GeminiThinkingConfig(
-    val thinkingLevel: String = "low",
+    val thinkingLevel: String = "LOW",
 )
 
 @Serializable
@@ -46,7 +46,7 @@ internal data class GeminiResponseFormat(
 
 @Serializable
 internal data class GeminiTextFormat(
-    val mimeType: String = "application/json",
+    val mimeType: String = "APPLICATION_JSON",
     val schema: JsonObject = correctionResultSchema,
 )
 

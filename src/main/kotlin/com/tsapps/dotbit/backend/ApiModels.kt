@@ -29,9 +29,14 @@ internal data class GeminiGenerateContentRequest(
 
 @Serializable
 internal data class GeminiGenerationConfig(
-    val temperature: Double = 0.0,
     val maxOutputTokens: Int = 4_096,
+    val thinkingConfig: GeminiThinkingConfig = GeminiThinkingConfig(),
     val responseFormat: GeminiResponseFormat = GeminiResponseFormat(),
+)
+
+@Serializable
+internal data class GeminiThinkingConfig(
+    val thinkingLevel: String = "low",
 )
 
 @Serializable

@@ -5,13 +5,17 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class GeminiCorrectionProviderTest {
     private val json = Json {
@@ -28,6 +32,24 @@ class GeminiCorrectionProviderTest {
                 request.url.toString(),
             )
             assertEquals("secret-key", request.headers["x-goog-api-key"])
+            val requestBody = (request.body as TextContent).text
+            val requestJson = json.parseToJsonElement(requestBody).jsonObject
+            val generationConfig = requestJson.getValue("generationConfig").jsonObject
+            assertFalse("temperature" in generationConfig)
+            assertFalse("topP" in generationConfig)
+            assertFalse("topK" in generationConfig)
+            assertEquals(
+                "low",
+                generationConfig.getValue("thinkingConfig").jsonObject
+                    .getValue("thinkingLevel").jsonPrimitive.content,
+            )
+            assertEquals(
+                "application/json",
+                generationConfig.getValue("responseFormat").jsonObject
+                    .getValue("text").jsonObject
+                    .getValue("mimeType").jsonPrimitive.content,
+            )
+            assertFalse(requestBody.contains("pageImage"))
             respond(
                 content = SUCCESS_RESPONSE,
                 status = HttpStatusCode.OK,

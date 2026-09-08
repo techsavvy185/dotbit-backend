@@ -12,7 +12,7 @@ export GEMINI_API_KEY="your-google-ai-studio-key"
 ./gradlew run
 ```
 
-When `GEMINI_API_KEY` is present, the service uses Gemini 3.8 Flash. Without the key, development mode uses a deterministic provider that chooses only from submitted OCR alternatives. Production mode fails fast when the key is missing. Run the tests with:
+When `GEMINI_API_KEY` is present, the service uses Gemini 3.8 Flash through `generateContent` with low thinking effort and structured JSON output. Deprecated Gemini 3 sampling controls are intentionally omitted. Without the key, development mode uses a deterministic provider that chooses only from submitted OCR alternatives. Production mode fails fast when the key is missing. Run the tests with:
 
 ```bash
 ./gradlew test
